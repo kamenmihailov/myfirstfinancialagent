@@ -16,14 +16,24 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime, date
 
+import requests
+from io import StringIO
 import pandas as pd
 import yfinance as yf
+
+# Wikipedia blocks the default Python user-agent with 403
+HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; stock-report-bot/1.0; +https://github.com/kamenmihailov/myfirstfinancialagent)"}
+
+def _read_html(url):
+    resp = requests.get(url, headers=HEADERS, timeout=30)
+    resp.raise_for_status()
+    return pd.read_html(StringIO(resp.text))
 
 
 # --- Ticker sources ---
 
 def fetch_sp500():
-    df = pd.read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")[0]
+    df = _read_html("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")[0]
     return [
         {
             "ticker": str(row["Symbol"]).strip().replace(".", "-"),
@@ -35,7 +45,7 @@ def fetch_sp500():
 
 
 def fetch_nasdaq100():
-    tables = pd.read_html("https://en.wikipedia.org/wiki/Nasdaq-100")
+    tables = _read_html("https://en.wikipedia.org/wiki/Nasdaq-100")
     for table in tables:
         cols = list(table.columns)
         lower = [str(c).lower() for c in cols]
