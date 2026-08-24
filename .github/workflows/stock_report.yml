@@ -1,0 +1,31 @@
+name: Weekly Stock Report
+
+on:
+  schedule:
+    - cron: '0 6 * * 6'   # Saturday 06:00 UTC = 08:00 CET / Berlin
+  workflow_dispatch:        # Also allows manual "Run workflow" button in GitHub UI
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: scripts/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run stock report and send email
+        env:
+          GMAIL_USER: kamen.mihailov@gmail.com
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: kamen.mihailov@gmail.com
+        run: python scripts/stock_report.py
