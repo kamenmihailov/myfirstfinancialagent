@@ -83,6 +83,37 @@ def fetch_dax():
     return [{"ticker": t, "name": n, "index": "DAX"} for t, n in DAX_40]
 
 
+def fetch_nasdaq_top500():
+    """Top 500 NASDAQ-listed stocks by market cap, via the NASDAQ screener API."""
+    url = "https://api.nasdaq.com/api/screener/stocks"
+    params = {
+        "tableonly": "true",
+        "limit": 500,
+        "offset": 0,
+        "exchange": "nasdaq",
+        "sortcolumn": "marketcap",
+        "sortorder": "desc",
+        "download": "true",
+    }
+    hdrs = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Referer": "https://www.nasdaq.com/",
+    }
+    resp = requests.get(url, params=params, headers=hdrs, timeout=30)
+    resp.raise_for_status()
+    rows = resp.json().get("data", {}).get("rows", [])
+    result = []
+    for row in rows:
+        sym = str(row.get("symbol", "")).strip()
+        name = str(row.get("name", "")).strip()
+        # Skip warrants, rights, and other non-standard tickers
+        if sym and sym.replace("-", "").isalpha():
+            result.append({"ticker": sym, "name": name, "index": "NASDAQ"})
+    print(f"  Fetched {len(result)} NASDAQ stocks from screener.", file=sys.stderr)
+    return result
+
+
 # --- Price metrics ---
 
 def _pct_return(series, ref_ts):
@@ -276,7 +307,7 @@ def build_html(top100):
     for rank, s in enumerate(top100, 1):
         bg = "#e8f5e9" if rank <= 10 else ("#f1f8e9" if rank <= 25 else "white")
         price_str = f"€{s['current_price']:,.2f}" if s["index"] == "DAX" else f"${s['current_price']:,.2f}"
-        idx_colors = {"DAX": "#1565c0", "S&P 500": "#2e7d32", "NASDAQ 100": "#6a1b9a"}
+        idx_colors = {"DAX": "#1565c0", "S&P 500": "#2e7d32", "NASDAQ 100": "#6a1b9a", "NASDAQ": "#e65100"}
         idx_color = idx_colors.get(s["index"], "#555")
 
         earn_date = s.get("earnings_date") or "—"
@@ -381,7 +412,7 @@ def send_email(html, subject):
 
 if __name__ == "__main__":
     print("Fetching ticker lists...", file=sys.stderr)
-    all_tickers = fetch_sp500() + fetch_nasdaq100() + fetch_dax()
+    all_tickers = fetch_sp500() + fetch_nasdaq100() + fetch_dax() + fetch_nasdaq_top500()
     print(f"Total tickers (pre-dedup): {len(all_tickers)}", file=sys.stderr)
 
     top100 = get_all_price_metrics(all_tickers)
