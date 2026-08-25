@@ -83,6 +83,142 @@ def fetch_dax():
     return [{"ticker": t, "name": n, "index": "DAX"} for t, n in DAX_40]
 
 
+NIKKEI_225 = [
+    ("7203.T","Toyota Motor"),("9984.T","SoftBank Group"),("6758.T","Sony Group"),
+    ("6861.T","Keyence"),("8035.T","Tokyo Electron"),("6954.T","Fanuc"),
+    ("7974.T","Nintendo"),("8306.T","Mitsubishi UFJ Financial"),("9432.T","NTT"),
+    ("6098.T","Recruit Holdings"),("4063.T","Shin-Etsu Chemical"),("8316.T","Sumitomo Mitsui Financial"),
+    ("9983.T","Fast Retailing"),("7741.T","Hoya"),("4519.T","Chugai Pharmaceutical"),
+    ("6902.T","Denso"),("8058.T","Mitsubishi Corp"),("8001.T","ITOCHU Corp"),
+    ("6367.T","Daikin Industries"),("9022.T","Central Japan Railway"),("4568.T","Daiichi Sankyo"),
+    ("4543.T","Terumo"),("4502.T","Takeda Pharmaceutical"),("7267.T","Honda Motor"),
+    ("2914.T","Japan Tobacco"),("9020.T","East Japan Railway"),("8031.T","Mitsui & Co"),
+    ("6501.T","Hitachi"),("7751.T","Canon"),("4901.T","Fujifilm Holdings"),
+    ("7733.T","Olympus"),("5401.T","Nippon Steel"),("8411.T","Mizuho Financial"),
+    ("6723.T","Renesas Electronics"),("4523.T","Eisai"),("3382.T","Seven & i Holdings"),
+    ("8267.T","Aeon"),("2802.T","Ajinomoto"),("6762.T","TDK"),("6971.T","Kyocera"),
+    ("6503.T","Mitsubishi Electric"),("6702.T","Fujitsu"),("7011.T","Mitsubishi Heavy Industries"),
+    ("5020.T","Eneos Holdings"),("8766.T","Tokio Marine Holdings"),("8630.T","Sompo Holdings"),
+    ("1925.T","Daiwa House Industry"),("8604.T","Nomura Holdings"),("4661.T","Oriental Land"),
+    ("4452.T","Kao"),("3407.T","Asahi Kasei"),("4188.T","Mitsubishi Chemical Group"),
+    ("4507.T","Shionogi"),("7832.T","Bandai Namco Holdings"),("4324.T","Dentsu Group"),
+    ("6857.T","Advantest"),("9433.T","KDDI"),("9434.T","SoftBank Corp"),
+    ("6920.T","Lasertec"),("7735.T","Screen Holdings"),("6146.T","Disco Corp"),
+    ("8802.T","Mitsubishi Estate"),("4151.T","Kyowa Kirin"),("5108.T","Bridgestone"),
+    ("6594.T","Nidec"),("7309.T","Shimano"),("3659.T","Nexon"),
+    ("9064.T","Yamato Holdings"),("8309.T","Sumitomo Mitsui Trust"),
+    ("4578.T","Otsuka Holdings"),("8750.T","Dai-ichi Life Holdings"),
+    ("9101.T","Nippon Yusen"),("9104.T","Mitsui OSK Lines"),("9107.T","Kawasaki Kisen"),
+    ("5019.T","Idemitsu Kosan"),("4704.T","Trend Micro"),("6770.T","Alps Alpine"),
+    ("6503.T","Mitsubishi Electric"),("2768.T","Sojitz"),
+]
+
+HANG_SENG = [
+    ("0001.HK","CK Hutchison"),("0002.HK","CLP Holdings"),("0003.HK","HK & China Gas"),
+    ("0005.HK","HSBC Holdings"),("0006.HK","Power Assets"),("0011.HK","Hang Seng Bank"),
+    ("0012.HK","Henderson Land"),("0016.HK","Sun Hung Kai Properties"),("0017.HK","New World Development"),
+    ("0019.HK","Swire Pacific"),("0027.HK","Galaxy Entertainment"),("0066.HK","MTR Corporation"),
+    ("0083.HK","Sino Land"),("0101.HK","Hang Lung Properties"),("0175.HK","Geely Automobile"),
+    ("0267.HK","CITIC"),("0288.HK","WH Group"),("0291.HK","China Resources Beer"),
+    ("0316.HK","Orient Overseas International"),("0388.HK","Hong Kong Exchanges"),
+    ("0489.HK","Dongfeng Motor"),("0688.HK","China Overseas Land"),("0700.HK","Tencent Holdings"),
+    ("0762.HK","China Unicom HK"),("0823.HK","Link REIT"),("0857.HK","PetroChina H"),
+    ("0868.HK","Xinyi Glass"),("0883.HK","CNOOC"),("0939.HK","China Construction Bank H"),
+    ("0941.HK","China Mobile"),("0960.HK","Longfor Group"),("0968.HK","Xinyi Solar"),
+    ("0992.HK","Lenovo Group"),("1038.HK","CK Infrastructure"),("1044.HK","Hengan International"),
+    ("1088.HK","China Shenhua H"),("1093.HK","CSPC Pharmaceutical"),("1109.HK","China Resources Land"),
+    ("1113.HK","CK Asset Holdings"),("1177.HK","Sino Biopharmaceutical"),("1211.HK","BYD H"),
+    ("1299.HK","AIA Group"),("1378.HK","China Hongqiao"),("1398.HK","ICBC H"),
+    ("1810.HK","Xiaomi"),("1876.HK","Budweiser APAC"),("1928.HK","Sands China"),
+    ("1997.HK","Wharf REIC"),("2007.HK","Country Garden"),("2018.HK","AAC Technologies"),
+    ("2020.HK","ANTA Sports"),("2269.HK","WuXi Biologics"),("2313.HK","Shenzhou International"),
+    ("2318.HK","Ping An Insurance H"),("2319.HK","China Mengniu Dairy"),("2331.HK","Li Ning"),
+    ("2382.HK","Sunny Optical"),("2388.HK","BOC Hong Kong"),("2628.HK","China Life H"),
+    ("3328.HK","Bank of Communications H"),("3690.HK","Meituan"),("3988.HK","Bank of China H"),
+    ("6098.HK","Country Garden Services"),("6862.HK","Haidilao"),
+    ("9618.HK","JD.com HK"),("9633.HK","Nongfu Spring"),("9988.HK","Alibaba HK"),
+    ("9999.HK","NetEase HK"),("1209.HK","CR Mixc Lifestyle"),
+]
+
+KOSPI_100 = [
+    ("005930.KS","Samsung Electronics"),("000660.KS","SK Hynix"),("207940.KS","Samsung Biologics"),
+    ("005380.KS","Hyundai Motor"),("035420.KS","NAVER"),("000270.KS","Kia"),
+    ("028260.KS","Samsung C&T"),("051910.KS","LG Chem"),("006400.KS","Samsung SDI"),
+    ("373220.KS","LG Energy Solution"),("035720.KS","Kakao"),("003670.KS","POSCO Holdings"),
+    ("017670.KS","SK Telecom"),("030200.KS","KT Corp"),("012330.KS","Hyundai Mobis"),
+    ("086790.KS","Hana Financial Group"),("105560.KS","KB Financial Group"),
+    ("055550.KS","Shinhan Financial Group"),("316140.KS","Woori Financial Group"),
+    ("032830.KS","Samsung Life Insurance"),("018260.KS","Samsung SDS"),
+    ("009150.KS","Samsung Electro-Mechanics"),("010130.KS","Korea Zinc"),
+    ("033780.KS","KT&G"),("066570.KS","LG Electronics"),("000810.KS","Samsung Fire & Marine"),
+    ("034220.KS","LG Display"),("010950.KS","S-Oil"),("090430.KS","Amorepacific"),
+    ("032640.KS","LG Uplus"),("015760.KS","Korea Electric Power"),("009830.KS","Hanwha Solutions"),
+    ("097950.KS","CJ CheilJedang"),("180640.KS","Hanwha Aerospace"),("267250.KS","HD Hyundai"),
+    ("000720.KS","Hyundai E&C"),("003550.KS","LG Corp"),("034730.KS","SK Inc"),
+    ("000880.KS","Hanwha Corp"),("352820.KS","HYBE"),("293490.KS","Kakao Bank"),
+    ("086280.KS","Hyundai Glovis"),("003490.KS","Korean Air"),("138040.KS","Meritz Financial"),
+    ("036570.KS","NCsoft"),("009540.KS","HD Hyundai Heavy Industries"),("011200.KS","HMM"),
+    ("047050.KS","POSCO Future M"),("051900.KS","LG H&H"),("004020.KS","Hyundai Steel"),
+    ("021240.KS","Coway"),("006800.KS","Mirae Asset Securities"),("024110.KS","IBK"),
+    ("096770.KS","SK Innovation"),("078930.KS","GS Holdings"),("001040.KS","CJ Corp"),
+    ("161390.KS","Hankook Tire"),("004170.KS","Shinsegae"),("036460.KS","Korea Gas Corp"),
+    ("023530.KS","Lotte Shopping"),("068270.KS","Celltrion"),("323410.KS","Kakao Pay"),
+    ("096530.KS","SK Biopharmaceuticals"),
+]
+
+CSI_300 = [
+    # Shanghai (SS)
+    ("600519.SS","Kweichow Moutai"),("601318.SS","Ping An Insurance"),("600036.SS","China Merchants Bank"),
+    ("601398.SS","ICBC"),("600900.SS","China Yangtze Power"),("601988.SS","Bank of China"),
+    ("600309.SS","Wanhua Chemical"),("601628.SS","China Life Insurance"),("600276.SS","Hengrui Medicine"),
+    ("600887.SS","Yili Group"),("601166.SS","Industrial Bank"),("601012.SS","LONGi Green Energy"),
+    ("600690.SS","Haier Smart Home"),("601601.SS","China Pacific Insurance"),
+    ("601939.SS","China Construction Bank A"),("600016.SS","Minsheng Banking"),
+    ("600030.SS","CITIC Securities"),("600000.SS","Shanghai Pudong Development Bank"),
+    ("601888.SS","China Tourism Group Duty Free"),("600104.SS","SAIC Motor"),
+    ("601857.SS","PetroChina A"),("600028.SS","Sinopec A"),("600031.SS","Sany Heavy Industry"),
+    ("601919.SS","COSCO Shipping"),("600585.SS","Anhui Conch Cement"),
+    ("601390.SS","China Railway Group"),("601728.SS","China Telecom A"),
+    ("601225.SS","Shaanxi Coal Industry"),("600019.SS","Baoshan Iron & Steel"),
+    ("601100.SS","CRRC Corp A"),("601111.SS","Air China"),("601238.SS","Guangzhou Automobile"),
+    ("601211.SS","Guotai Junan Securities"),("601688.SS","Huatai Securities"),
+    ("600346.SS","Hengli Petrochemical"),("601800.SS","China Communications Construction"),
+    ("600048.SS","Poly Developments"),("603288.SS","Haitian Flavouring"),
+    ("603259.SS","WuXi AppTec A"),("600438.SS","Tongwei"),("601998.SS","China CITIC Bank"),
+    ("600547.SS","Shandong Gold Mining"),("600011.SS","Huaneng Power"),
+    ("601600.SS","Chalco"),("600050.SS","China Unicom A"),("600196.SS","Fosun Pharmaceutical"),
+    ("601669.SS","Power Construction Corp"),("600618.SS","Shanghai Chlor-Alkali"),
+    # Shenzhen (SZ)
+    ("000858.SZ","Wuliangye Yibin"),("000001.SZ","Ping An Bank"),("002594.SZ","BYD A"),
+    ("300750.SZ","CATL"),("000333.SZ","Midea Group"),("002415.SZ","Hikvision"),
+    ("002714.SZ","Muyuan Foods"),("000651.SZ","Gree Electric"),("300760.SZ","Mindray Medical"),
+    ("000568.SZ","Luzhou Laojiao"),("002304.SZ","Jiangsu Yanghe Brewery"),
+    ("300274.SZ","Sungrow Power"),("002475.SZ","Luxshare Precision"),("000002.SZ","China Vanke"),
+    ("300015.SZ","Aier Eye Hospital"),("000725.SZ","BOE Technology"),
+    ("300059.SZ","East Money Information"),("002230.SZ","iFlytek"),
+    ("002236.SZ","Dahua Technology"),("300124.SZ","Inovance Technology"),
+    ("002241.SZ","Goertek"),("300122.SZ","Zhifei Biological Products"),
+    ("001979.SZ","China Merchants Shekou"),("002027.SZ","Focus Media"),
+    ("300498.SZ","Wens Foodstuffs"),("002142.SZ","Bank of Ningbo"),
+    ("300014.SZ","EVE Energy"),("000100.SZ","TCL Technology"),
+    ("002352.SZ","S.F. Holding"),("002049.SZ","Unigroup Guoxin"),
+    ("002372.SZ","Zhejiang NHU"),("300433.SZ","Lansi Technology"),
+]
+
+
+def fetch_nikkei225():
+    return [{"ticker": t, "name": n, "index": "Nikkei 225"} for t, n in NIKKEI_225]
+
+def fetch_hang_seng():
+    return [{"ticker": t, "name": n, "index": "Hang Seng"} for t, n in HANG_SENG]
+
+def fetch_kospi100():
+    return [{"ticker": t, "name": n, "index": "KOSPI 100"} for t, n in KOSPI_100]
+
+def fetch_csi300():
+    return [{"ticker": t, "name": n, "index": "CSI 300"} for t, n in CSI_300]
+
+
 def fetch_nasdaq_top500():
     """Top 500 NASDAQ-listed stocks by market cap, via the NASDAQ screener API."""
     url = "https://api.nasdaq.com/api/screener/stocks"
@@ -306,8 +442,12 @@ def build_html(top100):
     rows = ""
     for rank, s in enumerate(top100, 1):
         bg = "#e8f5e9" if rank <= 10 else ("#f1f8e9" if rank <= 25 else "white")
-        price_str = f"€{s['current_price']:,.2f}" if s["index"] == "DAX" else f"${s['current_price']:,.2f}"
-        idx_colors = {"DAX": "#1565c0", "S&P 500": "#2e7d32", "NASDAQ 100": "#6a1b9a", "NASDAQ": "#e65100"}
+        currency = {"DAX": "€", "Nikkei 225": "¥", "Hang Seng": "HK$", "KOSPI 100": "₩", "CSI 300": "¥"}.get(s["index"], "$")
+        price_str = f"{currency}{s['current_price']:,.0f}" if s["index"] in ("Nikkei 225", "KOSPI 100") else f"{currency}{s['current_price']:,.2f}"
+        idx_colors = {
+            "DAX": "#1565c0", "S&P 500": "#2e7d32", "NASDAQ 100": "#6a1b9a", "NASDAQ": "#e65100",
+            "Nikkei 225": "#b71c1c", "Hang Seng": "#00695c", "KOSPI 100": "#1a237e", "CSI 300": "#e65100",
+        }
         idx_color = idx_colors.get(s["index"], "#555")
 
         earn_date = s.get("earnings_date") or "—"
@@ -412,7 +552,10 @@ def send_email(html, subject):
 
 if __name__ == "__main__":
     print("Fetching ticker lists...", file=sys.stderr)
-    all_tickers = fetch_sp500() + fetch_nasdaq100() + fetch_dax() + fetch_nasdaq_top500()
+    all_tickers = (
+        fetch_sp500() + fetch_nasdaq100() + fetch_dax() + fetch_nasdaq_top500() +
+        fetch_nikkei225() + fetch_hang_seng() + fetch_kospi100() + fetch_csi300()
+    )
     print(f"Total tickers (pre-dedup): {len(all_tickers)}", file=sys.stderr)
 
     top100 = get_all_price_metrics(all_tickers)
