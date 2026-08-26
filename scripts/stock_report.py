@@ -482,6 +482,7 @@ def build_html(top100):
             f'<td class="c dim">{rank}</td>'
             f'<td class="b">{s["ticker"]}</td>'
             f'<td class="name">{s["name"]}</td>'
+            f'<td class="c"><span style="background:{idx_color};color:white;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap">{s["index"]}</span></td>'
             f'<td class="c">{fmt_mcap(s.get("market_cap"))}</td>'
             f'<td class="c">{price_str}</td>'
             f'<td class="c">{fmt_pct(s.get("ytd_pct"))}</td>'
@@ -528,6 +529,7 @@ def build_html(top100):
         <th>#</th>
         <th class="l">Ticker</th>
         <th class="l">Company</th>
+        <th>Index</th>
         <th>Mkt Cap</th>
         <th>Price</th>
         <th>YTD</th>
