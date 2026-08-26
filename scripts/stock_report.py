@@ -290,9 +290,14 @@ def compute_price_metrics(closes, sym):
     latest_ts = series.index[-1]
     high_52w = float(series.max())
 
+    ytd_pct = _pct_return(series, year_start)
+    # Filter 4: >500% YTD is almost certainly corrupted data (un-adjusted reverse split)
+    if ytd_pct is None or ytd_pct > 500:
+        return None
+
     return {
         "current_price": round(current_price, 2),
-        "ytd_pct":    _pct_return(series, year_start),
+        "ytd_pct":    ytd_pct,
         "m6_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=182)),
         "m3_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=91)),
         "m1_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=30)),
@@ -322,8 +327,15 @@ def get_all_price_metrics(all_tickers):
     for i in range(0, len(symbols), 100):
         batch = symbols[i : i + 100]
         try:
-            raw = yf.download(batch, start=start_date, progress=False, auto_adjust=True)
-            closes = raw["Close"] if isinstance(raw.columns, pd.MultiIndex) else raw
+            # auto_adjust=False: use Yahoo's own pre-computed Adj Close, which handles
+            # splits and dividends more reliably than yfinance's in-library recalculation.
+            raw = yf.download(batch, start=start_date, progress=False, auto_adjust=False)
+            if isinstance(raw.columns, pd.MultiIndex):
+                closes = raw["Adj Close"]
+            elif "Adj Close" in raw.columns:
+                closes = raw[["Adj Close"]].rename(columns={"Adj Close": batch[0]})
+            else:
+                closes = raw
             if isinstance(closes, pd.Series):
                 closes = closes.to_frame(name=batch[0])
 
