@@ -268,7 +268,12 @@ def compute_price_metrics(closes, sym):
     if sym not in closes.columns:
         return None
     series = closes[sym].dropna()
-    if len(series) < 5:
+
+    # Quality filters: require real trading history and a minimum price
+    # This excludes penny stocks, SPACs, and recently-listed shells
+    if len(series) < 150:          # must have ~7+ months of data in the year window
+        return None
+    if float(series.iloc[-1]) < 5.0:  # exclude sub-$5 stocks
         return None
 
     latest_ts = series.index[-1]
