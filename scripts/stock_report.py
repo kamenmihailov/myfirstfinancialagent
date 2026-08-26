@@ -269,28 +269,35 @@ def compute_price_metrics(closes, sym):
         return None
     series = closes[sym].dropna()
 
-    # Quality filters: require real trading history and a minimum price
-    # This excludes penny stocks, SPACs, and recently-listed shells
-    if len(series) < 150:          # must have ~7+ months of data in the year window
+    # Filter 1: require sufficient trading history (~7+ months)
+    if len(series) < 150:
         return None
-    if float(series.iloc[-1]) < 5.0:  # exclude sub-$5 stocks
+
+    current_price = float(series.iloc[-1])
+    tz = series.index.tz
+    year_start = pd.Timestamp(f"{date.today().year}-01-01", tz=tz)
+    ytd_series = series[series.index >= year_start]
+
+    # Filter 2: current price must be >= $5 (excludes penny stocks)
+    if current_price < 5.0:
+        return None
+
+    # Filter 3: start-of-year price must also be >= $5
+    # Without this, stocks that recovered FROM penny-stock levels show false +1000%+ YTD
+    if ytd_series.empty or float(ytd_series.iloc[0]) < 5.0:
         return None
 
     latest_ts = series.index[-1]
-    tz = series.index.tz
-    current = float(series.iloc[-1])
     high_52w = float(series.max())
 
-    year_start = pd.Timestamp(f"{date.today().year}-01-01", tz=tz)
-
     return {
-        "current_price": round(current, 2),
+        "current_price": round(current_price, 2),
         "ytd_pct":    _pct_return(series, year_start),
         "m6_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=182)),
         "m3_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=91)),
         "m1_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=30)),
         "w1_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=7)),
-        "vs_52w_pct": round(((current - high_52w) / high_52w) * 100, 1),
+        "vs_52w_pct": round(((current_price - high_52w) / high_52w) * 100, 1),
     }
 
 
