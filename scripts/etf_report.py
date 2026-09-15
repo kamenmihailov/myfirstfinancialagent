@@ -97,8 +97,15 @@ def fetch_etf_universe():
 
 # --- Price metrics (mirrors scripts/stock_report.py) ---
 
-def _pct_return(series, ref_ts):
-    """% return from first close at or after ref_ts to the latest close."""
+def _pct_return(series, ref_ts, require_history=False):
+    """% return from first close at or after ref_ts to the latest close.
+
+    If require_history, returns None when the series doesn't actually reach
+    back to ref_ts - otherwise a fund with only 2 years of data would report
+    its since-inception return as if it were a full 5-year return.
+    """
+    if require_history and series.index[0] > ref_ts + pd.Timedelta(days=10):
+        return None
     subset = series[series.index >= ref_ts]
     if subset.empty:
         return None
@@ -131,7 +138,9 @@ def compute_price_metrics(closes, sym):
         return None
 
     latest_ts = series.index[-1]
-    high_52w = float(series.max())
+    # 52W high must come from the trailing year only, not the full multi-year window
+    last_365 = series[series.index >= latest_ts - pd.Timedelta(days=365)]
+    high_52w = float(last_365.max())
 
     ytd_pct = _pct_return(series, year_start)
     # Filter 4: >500% YTD is almost certainly corrupted data (un-adjusted split/action)
@@ -145,19 +154,22 @@ def compute_price_metrics(closes, sym):
         "m3_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=91)),
         "m1_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=30)),
         "w1_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=7)),
+        "y2_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=365 * 2), require_history=True),
+        "y3_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=365 * 3), require_history=True),
+        "y5_pct":     _pct_return(series, latest_ts - pd.Timedelta(days=365 * 5), require_history=True),
         "vs_52w_pct": round(((current_price - high_52w) / high_52w) * 100, 1),
     }
 
 
 def get_all_price_metrics(all_etfs):
-    # Download 1 year of history to cover all timeframes + 52W high
-    start_date = (pd.Timestamp.now() - pd.Timedelta(days=370)).strftime("%Y-%m-%d")
+    # Download 5+ years of history to cover all timeframes up to the 5Y column
+    start_date = (pd.Timestamp.now() - pd.Timedelta(days=365 * 5 + 30)).strftime("%Y-%m-%d")
 
     meta = {e["ticker"]: e for e in all_etfs}
     symbols = list(meta.keys())
     results = []
 
-    print(f"Downloading 1-year price data for {len(symbols)} ETFs...", file=sys.stderr)
+    print(f"Downloading 5-year price data for {len(symbols)} ETFs...", file=sys.stderr)
 
     for i in range(0, len(symbols), 100):
         batch = symbols[i : i + 100]
@@ -290,6 +302,9 @@ def build_html(etfs):
             f'<td class="c"><span style="background:{provider_color};color:white;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap">{e["provider"]}</span></td>'
             f'<td class="c">{fmt_aum(e.get("aum"))}</td>'
             f'<td class="c">{fmt_price(e["ticker"], e["current_price"])}</td>'
+            f'<td class="c">{fmt_pct(e.get("y5_pct"))}</td>'
+            f'<td class="c">{fmt_pct(e.get("y3_pct"))}</td>'
+            f'<td class="c">{fmt_pct(e.get("y2_pct"))}</td>'
             f'<td class="c">{fmt_pct(e.get("ytd_pct"))}</td>'
             f'<td class="c">{fmt_pct(e.get("m6_pct"))}</td>'
             f'<td class="c">{fmt_pct(e.get("m3_pct"))}</td>'
@@ -307,7 +322,7 @@ def build_html(etfs):
   body   {{ font-family: Arial, sans-serif; color: #202124; max-width: 1200px; margin: 0 auto; padding: 24px; }}
   h1     {{ color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 10px; font-size: 20px; margin-bottom: 4px; }}
   .wrap  {{ overflow-x: auto; margin-top: 16px; }}
-  table  {{ border-collapse: collapse; font-size: 12px; min-width: 950px; width: 100%; }}
+  table  {{ border-collapse: collapse; font-size: 12px; min-width: 1150px; width: 100%; }}
   th     {{ background: #1a73e8; color: white; padding: 8px 10px; text-align: center; font-size: 11px;
              font-weight: 600; white-space: nowrap; position: sticky; top: 0; }}
   th.l   {{ text-align: left; }}
@@ -334,6 +349,9 @@ def build_html(etfs):
         <th>Provider</th>
         <th>AUM</th>
         <th>Price</th>
+        <th>5Y</th>
+        <th>3Y</th>
+        <th>2Y</th>
         <th>YTD</th>
         <th>6M</th>
         <th>3M</th>
