@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Core buy-and-hold UCITS ETF screener: Vanguard, Xtrackers (DWS), Amundi, SPDR.
+Core buy-and-hold UCITS ETF screener: Vanguard, Xtrackers (DWS), Amundi, SPDR, iShares.
 
 Two-stage decision this report is built around: pick the index (a strategy
 choice), then pick the cheapest accurate wrapper for it (a mechanical
@@ -118,6 +118,16 @@ ETF_UNIVERSE = [
     ("USDV.L",  "SPDR S&P US Dividend Aristocrats UCITS ETF", "SPDR", "US Dividend Aristocrats", "factor"),
     ("GLDV.L",  "SPDR S&P Global Dividend Aristocrats UCITS ETF", "SPDR", "Global Dividend Aristocrats", "factor"),
     ("WSML.L",  "SPDR MSCI World Small Cap UCITS ETF", "SPDR", "World Small Cap", "factor"),
+
+    # --- iShares (BlackRock) ---
+    ("EUNL.DE", "iShares Core MSCI World UCITS ETF", "iShares", "MSCI World", "core"),
+    ("SXR8.DE", "iShares Core S&P 500 UCITS ETF", "iShares", "S&P 500", "core"),
+    ("SXRV.DE", "iShares NASDAQ 100 UCITS ETF", "iShares", "Nasdaq-100", "core"),
+    ("IS3N.DE", "iShares Core MSCI EM IMI UCITS ETF", "iShares", "Emerging Markets", "core"),
+    ("EXSA.DE", "iShares STOXX Europe 600 UCITS ETF", "iShares", "Stoxx Europe 600", "core"),
+    ("EUNK.DE", "iShares Core MSCI Europe UCITS ETF", "iShares", "Europe", "core"),
+    ("IUSN.DE", "iShares MSCI World Small Cap UCITS ETF", "iShares", "World Small Cap", "factor"),
+    ("IH2O.L",  "iShares Global Water UCITS ETF", "iShares", "Water (Thematic)", "sector"),
 ]
 
 # Replication method: NOT available from Yahoo Finance for any of these
@@ -139,6 +149,10 @@ REPLICATION = {
     "SPY5.L": "Physical", "SPPW.DE": "Physical", "SWRD.L": "Physical",
     "EMDV.L": "Physical", "USDV.L": "Physical", "GLDV.L": "Physical",
     "WSML.L": "Physical",
+    # iShares: BlackRock's "Core" range is physical; none of these longNames say "Swap"
+    "EUNL.DE": "Physical", "SXR8.DE": "Physical", "SXRV.DE": "Physical",
+    "IS3N.DE": "Physical", "EXSA.DE": "Physical", "EUNK.DE": "Physical",
+    "IUSN.DE": "Physical", "IH2O.L": "Physical",
 }
 
 # Sort order for index groups: broad global first, then US, Europe, EM,
@@ -156,8 +170,8 @@ INDEX_ORDER = {
     "US Small Cap (Russell 2000)": 54, "Momentum": 55,
 }
 
-AUM_FLOOR_EUR = 1_000_000_000
-MIN_FUND_AGE_YEARS = 5
+AUM_FLOOR_EUR = 300_000_000
+MIN_FUND_AGE_YEARS = 3
 
 # Fallbacks for fields Yahoo's live metadata frequently omits (confirmed by
 # testing: e.g. Amundi's CW8.PA, a multi-billion-euro MSCI World fund, has no
@@ -167,7 +181,7 @@ MIN_FUND_AGE_YEARS = 5
 # when the live lookup returns nothing - not overrides of live data.
 
 PROVIDER_DOMICILE_FALLBACK = {
-    "Vanguard": "IE", "SPDR": "IE", "Xtrackers": "LU", "Amundi": "LU",
+    "Vanguard": "IE", "SPDR": "IE", "Xtrackers": "LU", "Amundi": "LU", "iShares": "IE",
 }
 
 # Yahoo's fundFamily/phone fields are WRONG for these, not just missing -
@@ -210,6 +224,8 @@ ACC_DIST_FALLBACK = {
     "SPY5.L": "Dist", "SPPW.DE": "Acc", "SWRD.L": "Acc", "WTEC.L": "Dist",
     "WHEA.L": "Dist", "WNRG.L": "Dist", "WFIN.L": "Dist", "WCOD.L": "Dist",
     "EMDV.L": "Dist", "USDV.L": "Dist", "GLDV.L": "Dist", "WSML.L": "Dist",
+    "EUNL.DE": "Acc", "SXR8.DE": "Acc", "SXRV.DE": "Acc", "IS3N.DE": "Acc",
+    "EXSA.DE": "Dist", "EUNK.DE": "Acc", "IUSN.DE": "Acc", "IH2O.L": "Dist",
 }
 
 TD_OVERRIDES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "etf_td_overrides.csv")
@@ -277,7 +293,7 @@ def _risk_metrics_3y(series, latest_ts):
     return max_dd, vol
 
 
-def compute_price_metrics(closes, sym, requested_start_ts):
+def compute_price_metrics(closes, sym):
     if sym not in closes.columns:
         return None
     series = closes[sym].dropna()
@@ -286,16 +302,17 @@ def compute_price_metrics(closes, sym, requested_start_ts):
     if len(series) < 150:
         return None
 
-    # Whether the series actually reaches back to (near) the requested download
-    # start - the direct, reliable way to know a fund has 5+ years of real
-    # tradable history. Yahoo's fundInceptionDate metadata field is NOT
-    # reliable for this (verified case: XDWD.DE's fundInceptionDate implied a
-    # ~3-year-old fund, but its actual downloaded price series reaches back to
-    # 2014 - an 11-year discrepancy). A 45-day tolerance absorbs the download
-    # window's own buffer plus holiday/weekend gaps near the boundary.
+    # Whether the series reaches back MIN_FUND_AGE_YEARS from its own latest
+    # date - the direct, reliable way to know a fund's real tradable history,
+    # instead of Yahoo's fundInceptionDate metadata field (verified
+    # unreliable: XDWD.DE's fundInceptionDate implied a ~3-year-old fund, but
+    # its actual downloaded price series reaches back to 2014 - an 11-year
+    # discrepancy). A 45-day tolerance absorbs holiday/weekend gaps near the
+    # boundary; requested_start_ts caps how far back this can ever detect
+    # (currently a 5-year download window, comfortably above MIN_FUND_AGE_YEARS).
     tz = series.index.tz
-    start_ts = requested_start_ts.tz_localize(tz) if tz is not None and requested_start_ts.tz is None else requested_start_ts
-    has_5y_history = series.index[0] <= start_ts + pd.Timedelta(days=45)
+    min_age_ts = series.index[-1] - pd.Timedelta(days=365 * MIN_FUND_AGE_YEARS)
+    has_min_history = series.index[0] <= min_age_ts + pd.Timedelta(days=45)
 
     current_price = float(series.iloc[-1])
     tz = series.index.tz
@@ -326,14 +343,13 @@ def compute_price_metrics(closes, sym, requested_start_ts):
         "max_dd_3y": max_dd_3y,
         "vol_3y":    vol_3y,
         "first_date": series.index[0],
-        "has_5y_history": bool(has_5y_history),
+        "has_min_history": bool(has_min_history),
     }
 
 
 def get_price_data(all_etfs):
-    """Download 5+ years of history and return {ticker: metrics_dict}."""
-    requested_start_ts = pd.Timestamp.now() - pd.Timedelta(days=365 * 5 + 30)
-    start_date = requested_start_ts.strftime("%Y-%m-%d")
+    """Download 5+ years of history (to cover the 5Y column) and return {ticker: metrics_dict}."""
+    start_date = (pd.Timestamp.now() - pd.Timedelta(days=365 * 5 + 30)).strftime("%Y-%m-%d")
     symbols = [e["ticker"] for e in all_etfs]
     results = {}
 
@@ -359,7 +375,7 @@ def get_price_data(all_etfs):
                 if sym not in found:
                     print(f"  No price data for {sym}, skipping.", file=sys.stderr)
                     continue
-                metrics = compute_price_metrics(closes, sym, requested_start_ts)
+                metrics = compute_price_metrics(closes, sym)
                 if metrics:
                     results[sym] = metrics
         except Exception as e:
@@ -376,26 +392,41 @@ def infer_domicile(info):
     which the age/domicile filter treats as fail-closed (excluded), since
     domicile is tax-critical and shouldn't be guessed.
     """
+    # fundFamily text is checked before the phone country code: a fund's
+    # phone number can be an unrelated admin contact (verified case: EXSA.DE
+    # names "BlackRock Asset Management Deutschland AG" in fundFamily but
+    # lists a +33 French phone number - the fundFamily text is the more
+    # direct signal there).
     fam = (info.get("fundFamily") or "").lower()
     phone = info.get("phone") or ""
-    if "ireland" in fam or phone.startswith("+353"):
+    if "ireland" in fam:
         return "IE"
-    if "luxembourg" in fam or phone.startswith("+352"):
+    if "luxembourg" in fam:
         return "LU"
-    if "france" in fam or phone.startswith("+33"):
-        return "FR"
-    if "germany" in fam or phone.startswith("+49"):
+    if "germany" in fam or "deutschland" in fam:
         return "DE"
-    if "united kingdom" in fam or phone.startswith("+44"):
+    if "france" in fam:
+        return "FR"
+    if "united kingdom" in fam:
+        return "UK"
+    if phone.startswith("+353"):
+        return "IE"
+    if phone.startswith("+352"):
+        return "LU"
+    if phone.startswith("+49"):
+        return "DE"
+    if phone.startswith("+33"):
+        return "FR"
+    if phone.startswith("+44"):
         return "UK"
     return None
 
 
 def infer_acc_dist(info):
     name = (info.get("longName") or "").lower()
-    if "accumulat" in name:
+    if "accumulat" in name or "(acc)" in name:
         return "Acc"
-    if "distribut" in name:
+    if "distribut" in name or "(dist)" in name:
         return "Dist"
     return None
 
@@ -463,11 +494,11 @@ def build_screened_list(all_etfs):
             dropped["aum_too_small"] += 1
             continue
 
-        # Gate on the ACTUAL downloaded price series reaching back 5 years, not
-        # Yahoo's fundInceptionDate metadata field - verified unreliable
-        # (XDWD.DE's fundInceptionDate implied a ~3-year-old fund; its real
-        # price history reaches back to 2014, an 11-year discrepancy).
-        if not pm["has_5y_history"]:
+        # Gate on the ACTUAL downloaded price series reaching back
+        # MIN_FUND_AGE_YEARS, not Yahoo's fundInceptionDate metadata field -
+        # verified unreliable (XDWD.DE's fundInceptionDate implied a
+        # ~3-year-old fund; its real price history reaches back to 2014).
+        if not pm["has_min_history"]:
             dropped["too_young"] += 1
             continue
 
@@ -553,6 +584,7 @@ def fmt_vol(v):
 
 PROVIDER_COLORS = {
     "Vanguard": "#8b0000", "Xtrackers": "#00558c", "Amundi": "#f2a900", "SPDR": "#2e7d32",
+    "iShares": "#5c2d91",
 }
 
 TABLE_COLUMNS = [
@@ -643,7 +675,7 @@ def build_html(etfs):
     Grouped by index, sorted by TER within each group &middot; {summary}
   </p>
   <p style="color:#888;font-size:12px;margin:6px 0 0">
-    Filters: AUM &ge; &euro;1B &middot; fund age &ge; 5y &middot; Ireland-domiciled &middot;
+    Filters: AUM &ge; &euro;{AUM_FLOOR_EUR // 1_000_000}M &middot; fund age &ge; {MIN_FUND_AGE_YEARS}y &middot; Ireland-domiciled &middot;
     Accumulating &middot; EUR-listed &middot; broad-market only (sector/country funds excluded)
   </p>
   <div class="wrap">
