@@ -142,6 +142,7 @@ REPLICATION = {
     # individually confirmed - a fund not saying "Swap" in its longName is
     # presumptively physical, but that heuristic isn't proof.
     "VWCE.DE": "Physical", "VUAA.DE": "Physical", "VGWE.DE": "Physical",
+    "VWRP.L": "Physical", "VFEG.L": "Physical",
     "XDWD.DE": "Physical", "XMME.DE": "Physical", "XMEU.DE": "Physical",
     "XMUS.DE": "Synthetic (Swap)", "XDEW.DE": "Physical", "XSX6.DE": "Physical",
     "CW8.PA": "Synthetic (Swap)", "500.PA": "Synthetic (Swap)", "ANX.PA": "Synthetic (Swap)",
@@ -172,6 +173,16 @@ INDEX_ORDER = {
 
 AUM_FLOOR_EUR = 300_000_000
 MIN_FUND_AGE_YEARS = 3
+
+# Listing currencies allowed through the filter. Yahoo reports two distinct
+# GB currency codes: "GBP" (pounds - most LSE-listed Vanguard/SPDR funds;
+# price values are already in whole pounds) and "GBp" (pence - lowercase p;
+# verified case: IH2O.L reports "GBp" with raw price values in pence, needing
+# the "GBX ###" pence-label treatment in fmt_price instead of a £ conversion).
+# The AUM floor is applied as the same raw number regardless of currency
+# (EUR/GBP/USD are all roughly comparable order-of-magnitude, and this is a
+# screening threshold, not a precise FX-adjusted comparison).
+ALLOWED_CURRENCIES = {"EUR", "GBP", "GBp", "USD"}
 
 # Fallbacks for fields Yahoo's live metadata frequently omits (confirmed by
 # testing: e.g. Amundi's CW8.PA, a multi-billion-euro MSCI World fund, has no
@@ -468,7 +479,7 @@ def build_screened_list(all_etfs):
     td_overrides = load_td_overrides()
 
     survivors = []
-    dropped = {"no_price_data": 0, "sector_or_country": 0, "not_eur": 0,
+    dropped = {"no_price_data": 0, "sector_or_country": 0, "currency_excluded": 0,
                "aum_too_small": 0, "too_young": 0, "not_ireland": 0, "not_acc": 0}
 
     for etf in all_etfs:
@@ -482,8 +493,8 @@ def build_screened_list(all_etfs):
         if etf["index_type"] in ("sector", "country"):
             dropped["sector_or_country"] += 1
             continue
-        if md.get("currency") != "EUR":
-            dropped["not_eur"] += 1
+        if md.get("currency") not in ALLOWED_CURRENCIES:
+            dropped["currency_excluded"] += 1
             continue
 
         # AUM: only drop when Yahoo actually reports a figure below the floor.
@@ -533,12 +544,18 @@ def build_screened_list(all_etfs):
 
 # --- Formatting helpers ---
 
-def fmt_aum(v):
+CURRENCY_SYMBOLS = {"EUR": "€", "USD": "$", "GBP": "£", "GBp": "£"}
+
+
+def fmt_aum(v, currency):
     if not v:
         return "—"
+    # AUM is reported in the fund's major currency unit even when the listing
+    # itself is quoted in a subunit (GBp/pence) - so GBp funds' AUM is in GBP.
+    symbol = CURRENCY_SYMBOLS.get(currency, (currency or "") + " ")
     if v >= 1e9:
-        return f"€{v / 1e9:.1f}B"
-    return f"€{v / 1e6:.0f}M"
+        return f"{symbol}{v / 1e9:.1f}B"
+    return f"{symbol}{v / 1e6:.0f}M"
 
 
 def fmt_pct(v):
@@ -570,8 +587,11 @@ def fmt_td(td_pct, td_as_of):
     return f"{sign}{td_pct:.2f}%{note}"
 
 
-def fmt_price(v):
-    return f"€{v:,.2f}"
+def fmt_price(v, currency):
+    if currency == "GBp":
+        return f"GBX {v:,.1f}"  # pence, not pounds - matches LSE quoting convention
+    symbol = CURRENCY_SYMBOLS.get(currency, (currency or "") + " ")
+    return f"{symbol}{v:,.2f}"
 
 
 def fmt_vol(v):
@@ -632,8 +652,8 @@ def build_html(etfs):
                 f'<td class="c small">{e["replication"]}</td>'
                 f'<td class="c">{fmt_ter(e.get("ter"))}</td>'
                 f'<td class="c">{fmt_td(e.get("td_pct"), e.get("td_as_of"))}</td>'
-                f'<td class="c">{fmt_aum(e.get("aum"))}</td>'
-                f'<td class="c">{fmt_price(e["current_price"])}</td>'
+                f'<td class="c">{fmt_aum(e.get("aum"), e.get("currency"))}</td>'
+                f'<td class="c">{fmt_price(e["current_price"], e.get("currency"))}</td>'
                 f'<td class="c">{fmt_pct(e.get("y5_pct"))}</td>'
                 f'<td class="c">{fmt_pct(e.get("y3_pct"))}</td>'
                 f'<td class="c">{fmt_pct(e.get("y2_pct"))}</td>'
@@ -675,8 +695,8 @@ def build_html(etfs):
     Grouped by index, sorted by TER within each group &middot; {summary}
   </p>
   <p style="color:#888;font-size:12px;margin:6px 0 0">
-    Filters: AUM &ge; &euro;{AUM_FLOOR_EUR // 1_000_000}M &middot; fund age &ge; {MIN_FUND_AGE_YEARS}y &middot; Ireland-domiciled &middot;
-    Accumulating &middot; EUR-listed &middot; broad-market only (sector/country funds excluded)
+    Filters: AUM &ge; {AUM_FLOOR_EUR // 1_000_000}M (EUR/GBP/USD) &middot; fund age &ge; {MIN_FUND_AGE_YEARS}y &middot; Ireland-domiciled &middot;
+    Accumulating &middot; listed in EUR, GBp or USD &middot; broad-market only (sector/country funds excluded)
   </p>
   <div class="wrap">
   <table>
