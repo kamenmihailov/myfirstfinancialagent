@@ -41,6 +41,11 @@ ETF_UNIVERSE = [
     ("VNRT.L",  "Vanguard FTSE North America UCITS ETF", "Vanguard"),
     ("VHYL.L",  "Vanguard FTSE All-World High Dividend Yield UCITS ETF", "Vanguard"),
     ("VGWE.DE", "Vanguard FTSE Developed World UCITS ETF", "Vanguard"),
+    ("VEVE.L",  "Vanguard FTSE Developed World UCITS ETF (Acc)", "Vanguard"),
+    ("VWRP.L",  "Vanguard FTSE All-World UCITS ETF (Acc, LSE)", "Vanguard"),
+    ("VUKE.L",  "Vanguard FTSE 100 UCITS ETF", "Vanguard"),
+    ("VMID.L",  "Vanguard FTSE 250 UCITS ETF", "Vanguard"),
+    ("VFEG.L",  "Vanguard FTSE Emerging Markets UCITS ETF (Acc)", "Vanguard"),
 
     # --- Xtrackers (DWS) ---
     ("XDWD.DE", "Xtrackers MSCI World UCITS ETF", "Xtrackers"),
@@ -54,6 +59,9 @@ ETF_UNIVERSE = [
     ("XDWC.DE", "Xtrackers MSCI World Consumer Discretionary UCITS ETF", "Xtrackers"),
     ("XAIX.DE", "Xtrackers Artificial Intelligence and Big Data UCITS ETF", "Xtrackers"),
     ("XDEW.DE", "Xtrackers S&P 500 Equal Weight UCITS ETF", "Xtrackers"),
+    ("DBXD.DE", "Xtrackers DAX UCITS ETF", "Xtrackers"),
+    ("XSX6.DE", "Xtrackers Stoxx Europe 600 UCITS ETF", "Xtrackers"),
+    ("XDWM.DE", "Xtrackers MSCI World Momentum UCITS ETF", "Xtrackers"),
 
     # --- Amundi (incl. former Lyxor funds) ---
     ("CW8.PA",   "Amundi MSCI World UCITS ETF (Acc)", "Amundi"),
@@ -64,6 +72,8 @@ ETF_UNIVERSE = [
     ("CG9.PA",   "Amundi MSCI Emerging Markets UCITS ETF", "Amundi"),
     ("CJ1.PA",   "Amundi Japan Topix UCITS ETF", "Amundi"),
     ("WAT.PA",   "Amundi MSCI Water ESG Screened UCITS ETF", "Amundi"),
+    ("RS2K.PA",  "Amundi Russell 2000 UCITS ETF", "Amundi"),
+    ("PUST.PA",  "Amundi Prime USA UCITS ETF", "Amundi"),
 
     # --- SPDR (State Street) ---
     ("SPY5.L",  "SPDR S&P 500 UCITS ETF", "SPDR"),
@@ -74,6 +84,10 @@ ETF_UNIVERSE = [
     ("WNRG.L",  "SPDR MSCI World Energy UCITS ETF", "SPDR"),
     ("WFIN.L",  "SPDR MSCI World Financials UCITS ETF", "SPDR"),
     ("WCOD.L",  "SPDR MSCI World Consumer Discretionary UCITS ETF", "SPDR"),
+    ("EMDV.L",  "SPDR MSCI Emerging Markets UCITS ETF", "SPDR"),
+    ("USDV.L",  "SPDR S&P US Dividend Aristocrats UCITS ETF", "SPDR"),
+    ("GLDV.L",  "SPDR S&P Global Dividend Aristocrats UCITS ETF", "SPDR"),
+    ("WSML.L",  "SPDR MSCI World Small Cap UCITS ETF", "SPDR"),
 ]
 
 
