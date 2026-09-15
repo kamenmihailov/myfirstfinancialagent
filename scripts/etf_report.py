@@ -8,21 +8,34 @@ choice). Sorting everything by YTD mixes those two decisions into one
 column and makes the strategy choice look like a performance comparison -
 this report groups by index and sorts by cost within each group instead.
 
-Filters applied (drops anything that fails any of these):
-  - AUM >= EUR 1B                  (closure/merger risk below this)
-  - Fund age >= 5 years            (otherwise the 5Y column is empty noise)
-  - Domicile = Ireland             (15% US treaty withholding vs 30%)
-  - Accumulating share class only  (no manual reinvestment step)
-  - EUR-denominated listing        (Xetra/gettex/Euronext - no FX conversion;
-                                     GBX/LSE listings are excluded)
-  - Broad-market index only        (single-sector and single-country funds
-                                     are dropped entirely, not demoted)
+Two tables:
+
+1. Core index funds - broad-market/factor, gated on ALL of:
+     - AUM >= EUR 300M (see AUM_FLOOR_EUR)      (closure/merger risk below this)
+     - Fund age >= 3 years (see MIN_FUND_AGE_YEARS) (otherwise return columns are noise)
+     - Domicile = Ireland                        (15% US treaty withholding vs 30%)
+     - Accumulating share class only              (no manual reinvestment step)
+     - Listed in EUR, GBP, GBp or USD (see ALLOWED_CURRENCIES)
+   Single-country funds (DAX, FTSE 100, Japan, etc.) are dropped entirely
+   from both tables - that exclusion was never in question.
+
+2. Sector & thematic funds (Water, Technology, Health Care, etc.) - same
+   currency/AUM/age gates, but domicile and Acc/Dist are NOT enforced here
+   (almost nothing in this space is both Irish and Accumulating). Departures
+   from the IE/Acc baseline are flagged per-row in orange instead of being
+   silently dropped or silently accepted.
 
 Domicile and Acc/Dist are inferred live from Yahoo's fund metadata
 (fundFamily text, phone country code, longName), not hardcoded - see
-infer_domicile() / infer_acc_dist(). Replication method is NOT available
-from Yahoo at all and is maintained as a static, general-knowledge field
-below - it is not live-verified, see the report footer.
+infer_domicile() / infer_acc_dist(). Both fields have needed real
+corrections found via testing (not just gaps): Yahoo's fundFamily/phone
+for XDWD.DE pointed to Luxembourg while the fund is actually Irish, and
+several longNames use abbreviated "Acc"/"Dist" or "(DE)" suffixes the
+naive substring checks missed - see DOMICILE_OVERRIDE and ACC_DIST_FALLBACK.
+Replication method is NOT available from Yahoo at all and is maintained as
+a static, general-knowledge field below, cross-checked against longName
+where it explicitly says "Swap" - not fully live-verified, see the report
+footer.
 
 True tracking difference (fund return minus benchmark return) can't be
 computed from Yahoo Finance - there's no benchmark total-return series
@@ -38,6 +51,7 @@ Required environment variables:
 """
 
 import os
+import re
 import sys
 import csv
 import smtplib
@@ -145,8 +159,13 @@ REPLICATION = {
     "VWRP.L": "Physical", "VFEG.L": "Physical",
     "XDWD.DE": "Physical", "XMME.DE": "Physical", "XMEU.DE": "Physical",
     "XMUS.DE": "Synthetic (Swap)", "XDEW.DE": "Physical", "XSX6.DE": "Physical",
+    # Sector funds - confirmed via longName cross-check, none say "Swap"
+    "XAIX.DE": "Physical", "XDWC.DE": "Physical", "XDWF.DE": "Physical",
+    "XDWH.DE": "Physical", "XDWM.DE": "Physical", "XDWT.DE": "Physical",
+    "WNRG.L": "Physical", "WFIN.L": "Physical", "WHEA.L": "Physical",
+    "WTEC.L": "Physical", "WCOD.L": "Physical",
     "CW8.PA": "Synthetic (Swap)", "500.PA": "Synthetic (Swap)", "ANX.PA": "Synthetic (Swap)",
-    "CG9.PA": "Physical", "RS2K.PA": "Physical", "PUST.PA": "Physical",
+    "CG9.PA": "Physical", "RS2K.PA": "Physical", "PUST.PA": "Physical", "WAT.PA": "Physical",
     "SPY5.L": "Physical", "SPPW.DE": "Physical", "SWRD.L": "Physical",
     "EMDV.L": "Physical", "USDV.L": "Physical", "GLDV.L": "Physical",
     "WSML.L": "Physical",
@@ -231,9 +250,14 @@ ACC_DIST_FALLBACK = {
     "XDWC.DE": "Acc", "XAIX.DE": "Acc", "XDEW.DE": "Acc", "DBXD.DE": "Dist",
     "XSX6.DE": "Acc", "XDWM.DE": "Acc",
     "CW8.PA": "Acc", "500.PA": "Acc", "ANX.PA": "Acc", "CG9.PA": "Acc",
-    "CJ1.PA": "Acc", "WAT.PA": "Acc", "RS2K.PA": "Acc", "PUST.PA": "Acc",
-    "SPY5.L": "Dist", "SPPW.DE": "Acc", "SWRD.L": "Acc", "WTEC.L": "Dist",
-    "WHEA.L": "Dist", "WNRG.L": "Dist", "WFIN.L": "Dist", "WCOD.L": "Dist",
+    "CJ1.PA": "Acc", "RS2K.PA": "Acc", "PUST.PA": "Acc",
+    "WAT.PA": "Dist",  # confirmed via longName "Amundi MSCI Water UCITS ETF Dist" - corrected from an earlier wrong guess
+    "SPY5.L": "Dist", "SPPW.DE": "Acc", "SWRD.L": "Acc",
+    # WTEC.L/WFIN.L confirmed "USD Acc" via longName - corrected from an
+    # earlier wrong guess of Dist. WHEA.L/WNRG.L/WCOD.L longNames carry no
+    # share-class suffix at all, so Dist here is still an unconfirmed guess.
+    "WTEC.L": "Acc", "WFIN.L": "Acc",
+    "WHEA.L": "Dist", "WNRG.L": "Dist", "WCOD.L": "Dist",
     "EMDV.L": "Dist", "USDV.L": "Dist", "GLDV.L": "Dist", "WSML.L": "Dist",
     "EUNL.DE": "Acc", "SXR8.DE": "Acc", "SXRV.DE": "Acc", "IS3N.DE": "Acc",
     "EXSA.DE": "Dist", "EUNK.DE": "Acc", "IUSN.DE": "Acc", "IH2O.L": "Dist",
@@ -435,9 +459,9 @@ def infer_domicile(info):
 
 def infer_acc_dist(info):
     name = (info.get("longName") or "").lower()
-    if "accumulat" in name or "(acc)" in name:
+    if "accumulat" in name or re.search(r"\bacc\b", name):
         return "Acc"
-    if "distribut" in name or "(dist)" in name:
+    if "distribut" in name or re.search(r"\bdist\b", name):
         return "Dist"
     return None
 
@@ -474,24 +498,39 @@ def fetch_all_metadata(all_etfs):
 # --- Assemble, filter, sort ---
 
 def build_screened_list(all_etfs):
+    """Returns (core_survivors, sector_survivors).
+
+    core_survivors: broad-market/factor funds passing EVERY filter, including
+    domicile (IE-only) and share class (Acc-only) - the disciplined
+    index-vs-index cost comparison.
+    sector_survivors: single-sector/thematic funds (Water, Technology, etc.)
+    passing only currency/AUM/age - domicile and Acc/Dist are NOT gated here
+    (this is an exploratory table, not the tax-optimized core comparison),
+    but both are flagged per-row via "domicile_flag"/"acc_flag" so the
+    tradeoff stays visible rather than silently accepted. Single-country
+    funds (DAX, FTSE 100, Japan, etc.) are still dropped outright in both
+    tables - that exclusion was never in question.
+    """
     price_data = get_price_data(all_etfs)
     metadata = fetch_all_metadata(all_etfs)
     td_overrides = load_td_overrides()
 
-    survivors = []
-    dropped = {"no_price_data": 0, "sector_or_country": 0, "currency_excluded": 0,
+    core_survivors = []
+    sector_survivors = []
+    dropped = {"no_price_data": 0, "country": 0, "currency_excluded": 0,
                "aum_too_small": 0, "too_young": 0, "not_ireland": 0, "not_acc": 0}
 
     for etf in all_etfs:
         sym = etf["ticker"]
         pm = price_data.get(sym)
         md = metadata.get(sym, {})
+        is_sector = etf["index_type"] == "sector"
 
         if pm is None:
             dropped["no_price_data"] += 1
             continue
-        if etf["index_type"] in ("sector", "country"):
-            dropped["sector_or_country"] += 1
+        if etf["index_type"] == "country":
+            dropped["country"] += 1
             continue
         if md.get("currency") not in ALLOWED_CURRENCIES:
             dropped["currency_excluded"] += 1
@@ -516,30 +555,38 @@ def build_screened_list(all_etfs):
         # DOMICILE_OVERRIDE takes priority over the live value - verified wrong
         # for these specific tickers, not just missing (see comment above).
         domicile = DOMICILE_OVERRIDE.get(sym) or md.get("domicile") or PROVIDER_DOMICILE_FALLBACK.get(etf["provider"])
-        if domicile != "IE":
-            dropped["not_ireland"] += 1
-            continue
-
         acc_dist = md.get("acc_dist") or ACC_DIST_FALLBACK.get(sym)
-        if acc_dist != "Acc":
-            dropped["not_acc"] += 1
-            continue
+
+        if not is_sector:
+            if domicile != "IE":
+                dropped["not_ireland"] += 1
+                continue
+            if acc_dist != "Acc":
+                dropped["not_acc"] += 1
+                continue
 
         record = {**etf, **pm, **md}
         record.pop("first_date", None)
         record["domicile"] = domicile
+        record["acc_dist"] = acc_dist
         record["replication"] = REPLICATION.get(sym, "Unknown")
         record.update(td_overrides.get(sym, {"td_pct": None, "td_as_of": None}))
-        survivors.append(record)
 
-    print(f"Survived all filters: {len(survivors)} / {len(all_etfs)}", file=sys.stderr)
+        if etf["index_type"] == "sector":
+            sector_survivors.append(record)
+        else:
+            core_survivors.append(record)
+
+    print(f"Core survivors: {len(core_survivors)}, sector/thematic survivors: {len(sector_survivors)} / {len(all_etfs)}", file=sys.stderr)
     print(f"  Dropped breakdown: {dropped}", file=sys.stderr)
 
-    survivors.sort(key=lambda e: (
+    sort_key = lambda e: (
         INDEX_ORDER.get(e["index_category"], 999),
         e["ter"] if e["ter"] is not None else float("inf"),
-    ))
-    return survivors
+    )
+    core_survivors.sort(key=sort_key)
+    sector_survivors.sort(key=lambda e: (e["index_category"], e["ter"] if e["ter"] is not None else float("inf")))
+    return core_survivors, sector_survivors
 
 
 # --- Formatting helpers ---
@@ -600,6 +647,15 @@ def fmt_vol(v):
     return f"{v:.1f}%"
 
 
+def fmt_flagged(value, flagged):
+    """Highlight a value that departs from the core table's baseline
+    (non-IE domicile, non-Acc share class) - used only in the sector/thematic
+    table, where those aren't hard filters but should stay visible."""
+    if not flagged:
+        return str(value)
+    return f'<span style="color:#b26a00;font-weight:700">{value}</span>'
+
+
 # --- HTML report ---
 
 PROVIDER_COLORS = {
@@ -608,21 +664,16 @@ PROVIDER_COLORS = {
 }
 
 TABLE_COLUMNS = [
-    "#", "Ticker", "Fund", "Provider", "Domicile", "Replication",
+    "#", "Ticker", "Fund", "Provider", "Domicile", "Share", "Replication",
     "TER (proxy)", "TD (manual)", "AUM", "Price", "5Y", "3Y", "2Y", "YTD",
     "Max DD (3Y)", "Vol (3Y)",
 ]
 
 
-def build_html(etfs):
-    today = datetime.now().strftime("%B %d, %Y")
-
-    provider_counts = {}
-    for e in etfs:
-        provider_counts[e["provider"]] = provider_counts.get(e["provider"], 0) + 1
-    summary = " · ".join(f"{v} from {k}" for k, v in sorted(provider_counts.items()))
-
-    # Group by index_category in INDEX_ORDER, preserving the pre-sorted (by TER) order within each
+def render_table_rows(etfs, header_bg="#1a73e8"):
+    """Group by index_category (preserving pre-sorted order within each), render section
+    header rows + data rows. Rank resets per group."""
+    ncols = len(TABLE_COLUMNS)
     groups = []
     seen_cats = set()
     for e in etfs:
@@ -631,12 +682,11 @@ def build_html(etfs):
             seen_cats.add(cat)
             groups.append(cat)
 
-    ncols = len(TABLE_COLUMNS)
     body = ""
     for cat in groups:
         cat_etfs = [e for e in etfs if e["index_category"] == cat]
         body += (
-            f'<tr><td colspan="{ncols}" style="background:#1a73e8;color:white;'
+            f'<tr><td colspan="{ncols}" style="background:{header_bg};color:white;'
             f'font-weight:700;padding:7px 10px;font-size:12px">{cat}</td></tr>'
         )
         for rank, e in enumerate(cat_etfs, 1):
@@ -648,7 +698,8 @@ def build_html(etfs):
                 f'<td class="b">{e["ticker"]}</td>'
                 f'<td class="name">{e["name"]}</td>'
                 f'<td class="c"><span style="background:{provider_color};color:white;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;white-space:nowrap">{e["provider"]}</span></td>'
-                f'<td class="c">{e["domicile"]}</td>'
+                f'<td class="c">{fmt_flagged(e["domicile"], e["domicile"] != "IE")}</td>'
+                f'<td class="c">{fmt_flagged(e.get("acc_dist"), e.get("acc_dist") != "Acc")}</td>'
                 f'<td class="c small">{e["replication"]}</td>'
                 f'<td class="c">{fmt_ter(e.get("ter"))}</td>'
                 f'<td class="c">{fmt_td(e.get("td_pct"), e.get("td_as_of"))}</td>'
@@ -662,11 +713,47 @@ def build_html(etfs):
                 f'<td class="c">{fmt_vol(e.get("vol_3y"))}</td>'
                 f'</tr>'
             )
+    return body
+
+
+def build_html(core_etfs, sector_etfs):
+    today = datetime.now().strftime("%B %d, %Y")
+
+    provider_counts = {}
+    for e in core_etfs:
+        provider_counts[e["provider"]] = provider_counts.get(e["provider"], 0) + 1
+    summary = " · ".join(f"{v} from {k}" for k, v in sorted(provider_counts.items()))
+
+    core_body = render_table_rows(core_etfs, header_bg="#1a73e8")
+    sector_body = render_table_rows(sector_etfs, header_bg="#8e5c1a")
 
     header_cells = "".join(
         f'<th class="l">{c}</th>' if c in ("Ticker", "Fund") else f'<th>{c}</th>'
         for c in TABLE_COLUMNS
     )
+
+    sector_section = ""
+    if sector_etfs:
+        sector_section = f"""
+  <h2>Sector &amp; Thematic Funds</h2>
+  <p style="color:#888;font-size:12px;margin:4px 0 0">
+    Filtered on currency, AUM and age only - domicile and share class are
+    <b>not</b> gated here (unlike the core table above), since almost nothing
+    in this space happens to be both Irish-domiciled and Accumulating.
+    <span style="color:#b26a00;font-weight:700">Orange</span> values in
+    Domicile/Share mark a departure from the core table's IE/Acc baseline -
+    check what that means for you before buying. These are single-sector/
+    thematic bets, not diversified core holdings; comparing TER across
+    sectors doesn't mean much since they're different risk profiles, not
+    wrappers of the same index - TER here is shown for reference only.
+  </p>
+  <div class="wrap">
+  <table>
+    <thead><tr>{header_cells}</tr></thead>
+    <tbody>{sector_body}</tbody>
+  </table>
+  </div>
+"""
 
     return f"""<!DOCTYPE html>
 <html>
@@ -675,6 +762,7 @@ def build_html(etfs):
 <style>
   body   {{ font-family: Arial, sans-serif; color: #202124; max-width: 1300px; margin: 0 auto; padding: 24px; }}
   h1     {{ color: #1a73e8; border-bottom: 2px solid #1a73e8; padding-bottom: 10px; font-size: 20px; margin-bottom: 4px; }}
+  h2     {{ color: #8e5c1a; border-bottom: 2px solid #8e5c1a; padding-bottom: 8px; font-size: 17px; margin: 32px 0 4px; }}
   .wrap  {{ overflow-x: auto; margin-top: 16px; }}
   table  {{ border-collapse: collapse; font-size: 12px; min-width: 1250px; width: 100%; }}
   th     {{ background: #0d47a1; color: white; padding: 8px 10px; text-align: center; font-size: 11px;
@@ -696,14 +784,15 @@ def build_html(etfs):
   </p>
   <p style="color:#888;font-size:12px;margin:6px 0 0">
     Filters: AUM &ge; {AUM_FLOOR_EUR // 1_000_000}M (EUR/GBP/USD) &middot; fund age &ge; {MIN_FUND_AGE_YEARS}y &middot; Ireland-domiciled &middot;
-    Accumulating &middot; listed in EUR, GBp or USD &middot; broad-market only (sector/country funds excluded)
+    Accumulating &middot; listed in EUR, GBp or USD &middot; broad-market core index funds only (single-country funds excluded; sector/thematic shown separately below)
   </p>
   <div class="wrap">
   <table>
     <thead><tr>{header_cells}</tr></thead>
-    <tbody>{body}</tbody>
+    <tbody>{core_body}</tbody>
   </table>
   </div>
+  {sector_section}
   <p style="color:#999;font-size:11px;margin-top:16px;line-height:1.6">
     TER is the advertised cost; actual tracking difference can be higher or lower &mdash;
     check justETF for finalists. TD (manual) is populated only for funds looked up and
@@ -748,11 +837,11 @@ if __name__ == "__main__":
     all_etfs = fetch_etf_universe()
     print(f"Total ETFs to check: {len(all_etfs)}", file=sys.stderr)
 
-    screened = build_screened_list(all_etfs)
+    core_survivors, sector_survivors = build_screened_list(all_etfs)
 
     today_str = datetime.now().strftime("%B %d, %Y")
     subject = f"ETF Screener - {today_str}"
-    html = build_html(screened)
+    html = build_html(core_survivors, sector_survivors)
 
     if os.environ.get("GMAIL_APP_PASSWORD"):
         send_email(html, subject)
